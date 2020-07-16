@@ -1,8 +1,8 @@
 package main
 
 import (
+	"jaytaylor.com/html2text"
 	"errors"
-	"github.com/lunny/html2md"
 	"github.com/mattermost/mattermost-server/model"
 	"github.com/mattermost/mattermost-server/plugin"
 	"github.com/wbernest/atom-parser"
@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 )
+// "github.com/JohannesKaufmann/html-to-markdown"
+
 
 //const RSSFEED_ICON_URL = "./plugins/rssfeed/assets/rss.png"
 
@@ -123,6 +125,10 @@ func (p *RSSFeedPlugin) processSubscription(subscription *Subscription) error {
 }
 
 func (p *RSSFeedPlugin) processRSSV2Subscription(subscription *Subscription) error {
+
+	// html to md converter
+	// converter := md.NewConverter("", true, nil)
+
 	config := p.getConfiguration()
 
 	// get new rss feed string from url
@@ -142,7 +148,28 @@ func (p *RSSFeedPlugin) processRSSV2Subscription(subscription *Subscription) err
 	for _, item := range items {
 		post := newRssFeed.Channel.Title + "\n" + item.Title + "\n" + item.Link + "\n"
 		if config.ShowDescription {
-			post = post + html2md.Convert(item.Description) + "\n"
+
+			// converted, err := converter.ConvertString(item.Description)
+			// if err != nil {
+			// 	p.API.LogInfo("Error in parsing description of RSSv2 feed item",
+			// 	"subscription_url", subscription.URL,
+			// 	"item_title", item.Title)
+			// } else {
+			// 	post = post + converted + "\n"
+			// }
+
+			// post = post + html2md.Convert(item.Description) + "\n"
+
+			// post = post + item.Description + "\n"
+
+			text, err := html2text.FromString(item.Description, html2text.Options{PrettyTables: true, OmitLinks: true})
+			if err != nil {
+				p.API.LogInfo("Error in parsing description of RSSv2 feed item",
+				"subscription_url", subscription.URL,
+				"item_title", item.Title)
+			}
+			post = post + text + "\n"
+
 		}
 		p.createBotPost(subscription.ChannelID, post, "custom_git_pr")
 	}
@@ -156,6 +183,10 @@ func (p *RSSFeedPlugin) processRSSV2Subscription(subscription *Subscription) err
 }
 
 func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) error {
+
+	// html to md converter
+	// converter := md.NewConverter("", true, nil)
+
 	// get new rss feed string from url
 	newFeed, newFeedString, err := atomparser.ParseURL(subscription.URL)
 	if err != nil {
@@ -174,22 +205,83 @@ func (p *RSSFeedPlugin) processAtomSubscription(subscription *Subscription) erro
 		post := newFeed.Title + "\n" + item.Title + "\n"
 
 		for _, link := range item.Link {
-			if link.Rel == "alternate" {
-				post = post + link.Href + "\n"
-			}
+			// if link.Rel == "alternate" {
+			// 	post = post + link.Href + "\n"
+			// }
+			post = post + "[" + link.Href + "]" + "(" + link.Href + ")" + "\n"
 		}
+
 		if item.Content != nil {
-			if item.Content.Type != "text" {
-				post = post + html2md.Convert(item.Content.Body) + "\n"
-			} else {
-				post = post + item.Content.Body + "\n"
-			}
-		} else {
-			p.API.LogInfo("Missing content in atom feed item",
+			
+			// if item.Content.Type != "text" {
+			// 	post = post + html2md.Convert(item.Content.Body) + "\n"
+			// } else {
+			// 	post = post + item.Content.Body + "\n"
+			// }
+
+			// converted, err := converter.ConvertString(item.Content.Body)
+			// if err != nil {
+			// 	p.API.LogInfo("Error in parsing Content Body of atom feed item",
+			// 		"subscription_url", subscription.URL,
+			// 		"item_title", item.Title)
+			// } else {
+			// 	p.API.LogInfo("Content Body parsed of atom feed item: " + converted,
+			// 		"subscription_url", subscription.URL,
+			// 		"item_title", item.Title)
+			// 	post = post + converted + "\n"
+			// }
+
+			// post = post + item.Content.Body + "\n"
+
+			text, err := html2text.FromString(item.Content.Body, html2text.Options{PrettyTables: true, OmitLinks: true})
+			if err != nil {
+				p.API.LogInfo("Error in parsing Content Body of atom feed item",
 				"subscription_url", subscription.URL,
 				"item_title", item.Title)
-			post = post + "\n"
+			}
+			post = post + text + "\n"
+
 		}
+		
+		if item.Summary != nil {
+			
+			// if item.Summary.Type != "text" {
+			// 	post = post + html2md.Convert(item.Summary.Body) + "\n"
+			// } else {
+			// 	post = post + item.Summary.Body + "\n"
+			// }
+
+			// converted, err := converter.ConvertString(item.Summary.Body)
+			// if err != nil {
+			// 	p.API.LogInfo("Error in parsing Summary Body of atom feed item",
+			// 		"subscription_url", subscription.URL,
+			// 		"item_title", item.Title)
+			// } else {
+			// 	p.API.LogInfo("Summary Body parsed of atom feed item: " + converted,
+			// 		"subscription_url", subscription.URL,
+			// 		"item_title", item.Title)
+			// 	post = post + converted + "\n"
+			// }
+
+			// post = post + item.Summary.Body + "\n"
+
+			text, err := html2text.FromString(item.Summary.Body, html2text.Options{PrettyTables: true, OmitLinks: true})
+			if err != nil {
+				p.API.LogInfo("Error in parsing Summary Body of atom feed item",
+				"subscription_url", subscription.URL,
+				"item_title", item.Title)
+			}
+			post = post + text + "\n"
+		
+		}
+		
+		// } else {
+		// 	p.API.LogInfo("Missing content in atom feed item",
+		// 		"subscription_url", subscription.URL,
+		// 		"item_title", item.Title)
+		// 	post = post + "\n"
+		// }
+
 		p.createBotPost(subscription.ChannelID, post, "custom_git_pr")
 	}
 
